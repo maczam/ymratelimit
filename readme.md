@@ -11,14 +11,28 @@
 
 测试对比对象： github.com/juju/ratelimit
 ```
-BenchmarkYmretelimit
-BenchmarkYmretelimit-4             	 6731272	       158 ns/op
-BenchmarkParallelYmretelimit
-BenchmarkParallelYmretelimit-4     	17704513	        66.5 ns/op
-BenchmarkJujuRatelimit
-BenchmarkJujuRatelimit-4           	 6094494	       182 ns/op
-BenchmarkParallelJujuRatelimit
-BenchmarkParallelJujuRatelimit-4   	 4009626	       267 ns/op
+➜  ymratelimit git:(master) ✗ go test -bench=. -run=none
+goos: darwin
+goarch: amd64
+pkg: github.com/maczam/ymratelimit
+BenchmarkYmretelimit-4                  14109680                79.9 ns/op
+BenchmarkParallelYmretelimit-4          44515245                28.5 ns/op
+BenchmarkJujuRatelimit-4                10214019               111 ns/op
+BenchmarkParallelJujuRatelimit-4         6336103               160 ns/op
+PASS
+ok      github.com/maczam/ymratelimit   4.978s
+
+➜  ymratelimit git:(master) ✗ go test -bench=. -benchmem -run=none
+goos: darwin
+goarch: amd64
+pkg: github.com/maczam/ymratelimit
+BenchmarkYmretelimit-4                  14484910                80.0 ns/op             0 B/op          0 allocs/op
+BenchmarkParallelYmretelimit-4          42125070                27.6 ns/op             0 B/op          0 allocs/op
+BenchmarkJujuRatelimit-4                10546452               111 ns/op               0 B/op          0 allocs/op
+BenchmarkParallelJujuRatelimit-4         6592738               171 ns/op               0 B/op          0 allocs/op
+PASS
+ok      github.com/maczam/ymratelimit   5.034s
+
 ```
 
 单线程串行，差不多，但是多线程并发是JujuRatelimit性能4倍。

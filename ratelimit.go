@@ -8,8 +8,8 @@ import (
 )
 
 /**
-   抽象接口
- */
+  抽象接口
+*/
 type Limiter interface {
 	TakeAvailableWithNow(now int64) bool
 	TakeAvailable() bool
@@ -119,7 +119,6 @@ func (t *tokenBucket) TakeAvailableWithNow(now int64) bool {
 	//
 	//sb.WriteString(fmt.Sprintf("now %d;nowTime:%v", now, t2))
 	for !taken {
-		newStat := tokenBucketStat{}
 		lastTokenBucketStatPointer := atomic.LoadPointer(&t.tokenBucketStat)
 		lastTokenBucketStat := (*tokenBucketStat)(lastTokenBucketStatPointer)
 
@@ -128,24 +127,25 @@ func (t *tokenBucket) TakeAvailableWithNow(now int64) bool {
 		//sb.WriteString(fmt.Sprintf("lastKeepCapacity:%d;", lastTokenBucketStat.KeepCapacity))
 
 		if now > lastTokenBucketStat.nextTokenTimestamp {
+			newStat := tokenBucketStat{}
 			newStat.nextTokenTimestamp = lastTokenBucketStat.nextTokenTimestamp + t.fillInterval
 			newStat.keepCapacity = t.capacity - 1
 			//sb.WriteString(fmt.Sprintf("改写下一次时间:%d;下一次容量:%d;", newStat.NextTokenTimestamp, newStat.KeepCapacity))
+			taken = atomic.CompareAndSwapPointer(&t.tokenBucketStat, lastTokenBucketStatPointer, unsafe.Pointer(&newStat))
 		} else {
 			//sb.WriteString(fmt.Sprintf("在时间窗口之内;"))
 
 			// 已经没有了
-			if lastTokenBucketStat.keepCapacity <= 0 {
-				//sb.WriteString(fmt.Sprintf("没有结余;"))
-				break
-			} else {
+			if lastTokenBucketStat.keepCapacity > 0 {
+				newStat := tokenBucketStat{}
 				newStat.nextTokenTimestamp = lastTokenBucketStat.nextTokenTimestamp
 				newStat.keepCapacity = lastTokenBucketStat.keepCapacity - 1
 				//sb.WriteString(fmt.Sprintf(fmt.Sprintf("修改结余:%d;", newStat.KeepCapacity)))
+				taken = atomic.CompareAndSwapPointer(&t.tokenBucketStat, lastTokenBucketStatPointer, unsafe.Pointer(&newStat))
+			} else {
+				break
 			}
 		}
-		taken = atomic.CompareAndSwapPointer(&t.tokenBucketStat, lastTokenBucketStatPointer, unsafe.Pointer(&newStat))
-
 	}
 	//sb.WriteString(fmt.Sprintf("最终结果:%t", taken))
 	//fmt.Println(sb.String())
