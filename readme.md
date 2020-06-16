@@ -35,7 +35,7 @@ ok      github.com/maczam/ymratelimit   5.034s
 
 ```
 
-单线程串行，差不多，但是多线程并发是JujuRatelimit性能4倍。
+单线程串行，差不多，但是多线程并发是JujuRatelimit性能7倍。
 
 
 # 使用
@@ -72,25 +72,36 @@ for !taken {
 	}
 ```
 ## TokenBucket.TakeAvailable
+
+注解代码
 ``` go
-for !taken {
-		newStat := tokenBucketStat{}
+func (t *tokenBucket) TakeAvailableWithNow(now int64) bool {
+
+	// for 是为了保证LoadPointer和CompareAndSwapPointer是处于原子状态
+	taken := false
+
+	for !taken {
 		lastTokenBucketStatPointer := atomic.LoadPointer(&t.tokenBucketStat)
 		lastTokenBucketStat := (*tokenBucketStat)(lastTokenBucketStatPointer)
+
 		if now > lastTokenBucketStat.nextTokenTimestamp {
+			newStat := tokenBucketStat{}
 			newStat.nextTokenTimestamp = lastTokenBucketStat.nextTokenTimestamp + t.fillInterval
 			newStat.keepCapacity = t.capacity - 1
+			taken = atomic.CompareAndSwapPointer(&t.tokenBucketStat, lastTokenBucketStatPointer, unsafe.Pointer(&newStat))
 		} else {
 
 			// 已经没有了
-			if lastTokenBucketStat.keepCapacity <= 0 {
-				break
-			} else {
+			if lastTokenBucketStat.keepCapacity > 0 {
+				newStat := tokenBucketStat{}
 				newStat.nextTokenTimestamp = lastTokenBucketStat.nextTokenTimestamp
 				newStat.keepCapacity = lastTokenBucketStat.keepCapacity - 1
+				taken = atomic.CompareAndSwapPointer(&t.tokenBucketStat, lastTokenBucketStatPointer, unsafe.Pointer(&newStat))
+			} else {
+				break
 			}
 		}
-		taken = atomic.CompareAndSwapPointer(&t.tokenBucketStat, lastTokenBucketStatPointer, unsafe.Pointer(&newStat))
-
 	}
+	return taken
+}
 ```
